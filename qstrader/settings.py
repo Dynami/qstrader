@@ -27,14 +27,14 @@ def from_env(key, default_value=None, root=ENV_VAR_ROOT):
 
 
 DEFAULT = munchify({
-    "CSV_DATA_DIR": from_env("CSV_DATA_DIR", "~/data"),
-    "OUTPUT_DIR": from_env("OUTPUT_DIR", "~/out")
+    "CSV_DATA_DIR": from_env("CSV_DATA_DIR", "~/qstrader/data"),
+    "OUTPUT_DIR": from_env("OUTPUT_DIR", "~/qstrader/out")
 })
 
 
 TEST = munchify({
-    "CSV_DATA_DIR": "data",
-    "OUTPUT_DIR": "out"
+    "CSV_DATA_DIR": "~/qstrader/data",
+    "OUTPUT_DIR": "~/qstrader/out"
 })
 
 
@@ -43,7 +43,7 @@ def from_file(fname=DEFAULT_CONFIG_FILENAME, testing=False):
         return TEST
     try:
         with open(os.path.expanduser(fname)) as fd:
-            conf = yaml.load(fd)
+            conf = yaml.load(fd, Loader=yaml.SafeLoader)
         conf = munchify(conf)
         return conf
     except IOError:

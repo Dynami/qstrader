@@ -176,7 +176,7 @@ class TearsheetStatistics(AbstractStatistics):
         ax.yaxis.grid(linestyle=':')
         ax.xaxis.set_major_locator(mdates.YearLocator(1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-        ax.xaxis.grid(linestyle=':')
+        #ax.xaxis.grid(linestyle=':')
 
         if self.benchmark is not None:
             benchmark = stats['cum_returns_b']
@@ -255,7 +255,7 @@ class TearsheetStatistics(AbstractStatistics):
         ax.xaxis.set_tick_params(reset=True)
         ax.xaxis.set_major_locator(mdates.YearLocator(1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-        ax.xaxis.grid(linestyle=':')
+        #ax.xaxis.grid(linestyle=':')
 
         underwater = -100 * drawdown
         underwater.plot(ax=ax, lw=2, kind='area', color='red', alpha=0.3, **kwargs)
