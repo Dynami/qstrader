@@ -37,6 +37,11 @@ TEST = munchify({
     "OUTPUT_DIR": "~/qstrader/out"
 })
 
+TEST_IG = munchify({
+    "CSV_DATA_DIR": "~/Desktop/stock-data/ETFs",
+    "OUTPUT_DIR": "~/qstrader/out"
+})
+
 
 def from_file(fname=DEFAULT_CONFIG_FILENAME, testing=False):
     if testing:

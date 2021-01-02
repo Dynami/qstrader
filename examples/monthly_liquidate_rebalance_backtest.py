@@ -7,7 +7,7 @@ from qstrader.position_sizer.rebalance import LiquidateRebalancePositionSizer
 from qstrader.event import SignalEvent, EventType
 from qstrader.compat import queue
 from qstrader.trading_session import TradingSession
-
+from qstrader.price_handler.daily_csv_bar import DailyCsvBarPriceHandler
 
 class MonthlyLiquidateRebalanceStrategy(AbstractStrategy):
     """
@@ -79,8 +79,8 @@ def run(config, testing, tickers, filename):
     # Use the liquidate and rebalance position sizer
     # with prespecified ticker weights
     ticker_weights = {
-        "SPY": 0.6,
-        "AGG": 0.4,
+        "ewg.us": 0.4,
+        "ewq.us": 0.6,
     }
     position_sizer = LiquidateRebalancePositionSizer(
         ticker_weights
@@ -90,7 +90,14 @@ def run(config, testing, tickers, filename):
     backtest = TradingSession(
         config, strategy, tickers,
         initial_equity, start_date, end_date,
-        events_queue, position_sizer=position_sizer,
+        events_queue,
+        position_sizer=position_sizer,
+        price_handler=DailyCsvBarPriceHandler('~/Desktop/stock-data/ETFs',
+                                              ext_data='txt',
+                                              init_tickers=tickers,
+                                              events_queue=events_queue,
+                                              start_date=start_date,
+                                              end_date=end_date),
         title=title, benchmark=tickers[0],
     )
     results = backtest.start_trading(testing=testing)
@@ -103,6 +110,6 @@ if __name__ == "__main__":
     config = settings.from_file(
         settings.DEFAULT_CONFIG_FILENAME, testing
     )
-    tickers = ["SPY", "AGG"]
+    tickers = ["ewg.us", "ewq.us"] #["SPY", "AGG"]
     filename = None
     run(config, testing, tickers, filename)

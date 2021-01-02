@@ -7,18 +7,21 @@ from .base import AbstractBarPriceHandler
 from ..event import BarEvent
 
 
-class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
+class DailyCsvBarPriceHandler(AbstractBarPriceHandler):
     """
-    IQFeedIntradayCsvBarPriceHandler is designed to read
-    intraday bar CSV files downloaded from DTN IQFeed, consisting
-    of Open-Low-High-Close-Volume-OpenInterest (OHLCVI) data
+    YahooDailyBarPriceHandler is designed to read CSV files of
+    Yahoo Finance daily Open-High-Low-Close-Volume (OHLCV) data
     for each requested financial instrument and stream those to
     the provided events queue as BarEvents.
     """
     def __init__(
-        self, csv_dir, events_queue,
+        self, csv_dir,
+        events_queue,
         init_tickers=None,
-        start_date=None, end_date=None
+        start_date=None,
+        end_date=None,
+        calc_adj_returns=False,
+        ext_data='csv'
     ):
         """
         Takes the CSV directory, the events queue and a possible
@@ -30,12 +33,17 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         self.continue_backtest = True
         self.tickers = {}
         self.tickers_data = {}
+        self.ext_data = ext_data
         if init_tickers is not None:
             for ticker in init_tickers:
                 self.subscribe_ticker(ticker)
         self.start_date = start_date
         self.end_date = end_date
         self.bar_stream = self._merge_sort_ticker_data()
+        self.calc_adj_returns = calc_adj_returns
+
+        if self.calc_adj_returns:
+            self.adj_close_returns = []
 
     def _open_ticker_price_csv(self, ticker):
         """
@@ -43,15 +51,14 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         the specified CSV data directory, converting them into
         them into a pandas DataFrame, stored in a dictionary.
         """
-        ticker_path = os.path.join(self.csv_dir, "%s.csv" % ticker)
 
-        self.tickers_data[ticker] = pd.read_csv(
-            ticker_path,
-            names=[
-                "Date", "Open", "Low", "High",
-                "Close", "Volume", "OpenInterest"
-            ],
-            index_col="Date", parse_dates=True
+        ticker_path = os.path.join(self.csv_dir, "%s.%s" % (ticker, self.ext_data))
+        self.tickers_data[ticker] = pd.io.parsers.read_csv(
+            ticker_path, header=0, parse_dates=True,
+            index_col=0, names=(
+                "Date", "Open", "High", "Low",
+                "Close", "Volume", "OpenInt"
+            )
         )
         self.tickers_data[ticker]["Ticker"] = ticker
 
@@ -71,7 +78,11 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
             start = df.index.searchsorted(self.start_date)
         if self.end_date is not None:
             end = df.index.searchsorted(self.end_date)
-        # Determine how to slice
+        # This is added so that the ticker events are
+        # always deterministic, otherwise unit test values
+        # will differ
+        df['colFromIndex'] = df.index
+        df = df.sort_values(by=["colFromIndex", "Ticker"])
         if start is None and end is None:
             return df.iterrows()
         elif start is not None and end is None:
@@ -92,10 +103,11 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
                 row0 = dft.iloc[0]
 
                 close = PriceParser.parse(row0["Close"])
+                adj_close = PriceParser.parse(row0["Close"])
 
                 ticker_prices = {
                     "close": close,
-                    "adj_close": close,
+                    "adj_close": adj_close,
                     "timestamp": dft.index[0]
                 }
                 self.tickers[ticker] = ticker_prices
@@ -116,8 +128,8 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         and return a BarEvent
         """
         open_price = PriceParser.parse(row["Open"])
-        low_price = PriceParser.parse(row["Low"])
         high_price = PriceParser.parse(row["High"])
+        low_price = PriceParser.parse(row["Low"])
         close_price = PriceParser.parse(row["Close"])
         adj_close_price = PriceParser.parse(row["Close"])
         volume = int(row["Volume"])
@@ -127,6 +139,30 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
             volume, adj_close_price
         )
         return bev
+
+    def _store_event(self, event):
+        """
+        Store price event for closing price and adjusted closing price
+        """
+        ticker = event.ticker
+        # If the calc_adj_returns flag is True, then calculate
+        # and store the full list of adjusted closing price
+        # percentage returns in a list
+        # TODO: Make this faster
+        if self.calc_adj_returns:
+            prev_adj_close = self.tickers[ticker][
+                "adj_close"
+            ] / float(PriceParser.PRICE_MULTIPLIER)
+            cur_adj_close = event.adj_close_price / float(
+                PriceParser.PRICE_MULTIPLIER
+            )
+            self.tickers[ticker][
+                "adj_close_ret"
+            ] = cur_adj_close / prev_adj_close - 1.0
+            self.adj_close_returns.append(self.tickers[ticker]["adj_close_ret"])
+        self.tickers[ticker]["close"] = event.close_price
+        self.tickers[ticker]["adj_close"] = event.adj_close_price
+        self.tickers[ticker]["timestamp"] = event.time
 
     def stream_next(self):
         """
@@ -139,7 +175,7 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
             return
         # Obtain all elements of the bar from the dataframe
         ticker = row["Ticker"]
-        period = 60  # Seconds in a minute
+        period = 86400  # Seconds in a day
         # Create the tick event for the queue
         bev = self._create_event(index, period, ticker, row)
         # Store event
