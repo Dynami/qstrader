@@ -18,7 +18,8 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
     def __init__(
         self, csv_dir, events_queue,
         init_tickers=None,
-        start_date=None, end_date=None
+        start_date=None, end_date=None,
+        calc_adj_returns=False
     ):
         """
         Takes the CSV directory, the events queue and a possible
@@ -30,9 +31,16 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         self.continue_backtest = True
         self.tickers = {}
         self.tickers_data = {}
+
+        self.calc_adj_returns = calc_adj_returns
+        if self.calc_adj_returns:
+            self.adj_close_returns = []
+
+
         if init_tickers is not None:
             for ticker in init_tickers:
                 self.subscribe_ticker(ticker)
+
         self.start_date = start_date
         self.end_date = end_date
         self.bar_stream = self._merge_sort_ticker_data()
@@ -49,9 +57,9 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
             ticker_path,
             names=[
                 "Date", "Open", "Low", "High",
-                "Close", "Volume", "OpenInterest"
+                "Close", "Volume"#, "OpenInterest"
             ],
-            index_col="Date", parse_dates=True
+            index_col="Date", parse_dates=True, header=0
         )
         self.tickers_data[ticker]["Ticker"] = ticker
 
@@ -98,6 +106,13 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
                     "adj_close": close,
                     "timestamp": dft.index[0]
                 }
+
+                if self.calc_adj_returns and ticker in self.tickers:
+                    prev_adj_close = self.tickers[ticker]["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
+                    cur_adj_close = ticker_prices["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
+                    ticker_prices["adj_close_ret"] = cur_adj_close / prev_adj_close - 1.0
+                    self.adj_close_returns.append(ticker_prices["adj_close_ret"])
+
                 self.tickers[ticker] = ticker_prices
             except OSError:
                 print(

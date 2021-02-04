@@ -637,7 +637,9 @@ class TearsheetStatistics(AbstractStatistics):
         plt.show(block=True)
 
         if filename is not None:
-            fig.savefig(filename, dpi=150, bbox_inches='tight')
+            fig.savefig(filename, dpi=150
+                        #,bbox_inches='tight'
+                        )
 
     def get_filename(self, filename=""):
         if filename == "":
@@ -648,4 +650,4 @@ class TearsheetStatistics(AbstractStatistics):
 
     def save(self, filename=""):
         filename = self.get_filename(filename)
-        self.plot_results
+        self.plot_results(filename)

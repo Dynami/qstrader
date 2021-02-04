@@ -164,5 +164,6 @@ class TradingSession(object):
             )
         )
         if not testing:
-            self.statistics.plot_results()
+            #self.statistics.plot_results()
+            self.statistics.save()
         return results
