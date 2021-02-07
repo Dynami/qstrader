@@ -26,6 +26,8 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         list of initial ticker symbols then creates an (optional)
         list of ticker subscriptions and associated prices.
         """
+        super().__init__()
+
         self.csv_dir = csv_dir
         self.events_queue = events_queue
         self.continue_backtest = True
@@ -35,7 +37,6 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
         self.calc_adj_returns = calc_adj_returns
         if self.calc_adj_returns:
             self.adj_close_returns = []
-
 
         if init_tickers is not None:
             for ticker in init_tickers:
@@ -107,11 +108,11 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
                     "timestamp": dft.index[0]
                 }
 
-                if self.calc_adj_returns and ticker in self.tickers:
-                    prev_adj_close = self.tickers[ticker]["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
-                    cur_adj_close = ticker_prices["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
-                    ticker_prices["adj_close_ret"] = cur_adj_close / prev_adj_close - 1.0
-                    self.adj_close_returns.append(ticker_prices["adj_close_ret"])
+                # if self.calc_adj_returns and ticker in self.tickers:
+                #     prev_adj_close = self.tickers[ticker]["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
+                #     cur_adj_close = ticker_prices["adj_close"] / float(PriceParser.PRICE_MULTIPLIER)
+                #     ticker_prices["adj_close_ret"] = cur_adj_close / prev_adj_close - 1.0
+                #     self.adj_close_returns.append(ticker_prices["adj_close_ret"])
 
                 self.tickers[ticker] = ticker_prices
             except OSError:
@@ -124,6 +125,30 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
                 "Could not subscribe ticker %s "
                 "as is already subscribed." % ticker
             )
+
+    def _store_event(self, event):
+        """
+        Store price event for closing price and adjusted closing price
+        """
+        ticker = event.ticker
+        # If the calc_adj_returns flag is True, then calculate
+        # and store the full list of adjusted closing price
+        # percentage returns in a list
+        # TODO: Make this faster
+        if self.calc_adj_returns:
+            prev_adj_close = self.tickers[ticker][
+                "adj_close"
+            ] / float(PriceParser.PRICE_MULTIPLIER)
+            cur_adj_close = event.adj_close_price / float(
+                PriceParser.PRICE_MULTIPLIER
+            )
+            self.tickers[ticker][
+                "adj_close_ret"
+            ] = cur_adj_close / prev_adj_close - 1.0
+            self.adj_close_returns.append(self.tickers[ticker]["adj_close_ret"])
+        self.tickers[ticker]["close"] = event.close_price
+        self.tickers[ticker]["adj_close"] = event.adj_close_price
+        self.tickers[ticker]["timestamp"] = event.time
 
     def _create_event(self, index, period, ticker, row):
         """
@@ -141,6 +166,9 @@ class IQFeedIntradayCsvBarPriceHandler(AbstractBarPriceHandler):
             high_price, low_price, close_price,
             volume, adj_close_price
         )
+
+        super()._store_event(bev)
+
         return bev
 
     def stream_next(self):

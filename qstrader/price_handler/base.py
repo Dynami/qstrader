@@ -1,7 +1,8 @@
 from __future__ import print_function
 
 from abc import ABCMeta
-
+import numpy as np
+from qstrader.price_parser import PriceParser
 
 class AbstractPriceHandler(object):
     """
@@ -80,6 +81,11 @@ class AbstractTickPriceHandler(AbstractPriceHandler):
 
 
 class AbstractBarPriceHandler(AbstractPriceHandler):
+    O, H, L, C, V = 0, 1, 2, 3, 4
+    def __init__(self):
+        self.bars = np.zeros((0, 5))
+        self.buffer_bars_length = 50;
+
     def istick(self):
         return False
 
@@ -94,6 +100,14 @@ class AbstractBarPriceHandler(AbstractPriceHandler):
         self.tickers[ticker]["close"] = event.close_price
         self.tickers[ticker]["adj_close"] = event.adj_close_price
         self.tickers[ticker]["timestamp"] = event.time
+        self.bars = np.vstack([self.bars, np.array([
+            round(event.open_price/PriceParser.PRICE_MULTIPLIER, 3),
+            round(event.high_price/PriceParser.PRICE_MULTIPLIER, 3),
+            round(event.low_price/PriceParser.PRICE_MULTIPLIER, 3),
+            round(event.close_price/PriceParser.PRICE_MULTIPLIER, 3),
+            event.volume
+        ])])
+        self.bars = self.bars[-self.buffer_bars_length:]
 
     def get_last_close(self, ticker):
         """

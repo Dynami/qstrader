@@ -29,7 +29,7 @@ class LiquidateRebalancePositionSizer(AbstractPositionSizer):
         ticker weights.
         """
         ticker = initial_order.ticker
-        if initial_order.action == "EXIT":
+        if initial_order.action == "EXIT" and ticker in portfolio.positions:
             # Obtain current quantity and liquidate
             cur_quantity = portfolio.positions[ticker].quantity
             if cur_quantity > 0:
@@ -48,4 +48,5 @@ class LiquidateRebalancePositionSizer(AbstractPositionSizer):
             dollar_weight = weight * equity
             weighted_quantity = int(floor(dollar_weight / price))
             initial_order.quantity = weighted_quantity
+            print('PositionSizer::size_order()', weighted_quantity)
         return initial_order
