@@ -102,6 +102,14 @@ class TearsheetStatistics(AbstractStatistics):
         if positions is not None:
             statistics["positions"] = positions
 
+        durations = (positions['end_timestamp'] - positions['start_timestamp']) / pd.Timedelta(days=1)
+
+        avg_duration = durations.mean()
+        statistics["max_duration"] = '{:.2f}'.format(durations.max())
+        statistics["min_duration"] = '{:.2f}'.format(durations.min())
+        statistics["std_duration"] = '{:.2f}'.format(durations.std())
+        statistics["avg_duration"] = '{:.2f}'.format(avg_duration)
+
         # Benchmark statistics if benchmark ticker specified
         if self.benchmark is not None:
             equity_b = pd.Series(self.equity_benchmark).sort_index()
@@ -156,6 +164,9 @@ class TearsheetStatistics(AbstractStatistics):
             df['total_sld'] = df['total_sld'].apply(x)
             df['unrealised_pnl'] = df['unrealised_pnl'].apply(x)
             df['trade_pct'] = (df['avg_sld'] / df['avg_bot'] - 1.0)
+            df['open_time'] = df['start_timestamp'].apply(x)
+            df['closed_time'] = df['end_timestamp'].apply(x)
+
             return df
 
     def _plot_equity(self, stats, ax=None, **kwargs):
@@ -448,6 +459,7 @@ class TearsheetStatistics(AbstractStatistics):
             avg_loss_pct = '{:.2%}'.format(np.mean(pos[pos["trade_pct"] <= 0]["trade_pct"]))
             max_win_pct = '{:.2%}'.format(np.max(pos["trade_pct"]))
             max_loss_pct = '{:.2%}'.format(np.min(pos["trade_pct"]))
+
 
         y_axis_formatter = FuncFormatter(format_perc)
         ax.yaxis.set_major_formatter(FuncFormatter(y_axis_formatter))

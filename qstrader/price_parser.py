@@ -1,5 +1,6 @@
 from __future__ import division
 from multipledispatch import dispatch
+import pandas as pd
 from .compat import PY2
 import numpy as np
 
@@ -54,6 +55,11 @@ class PriceParser(object):
     @dispatch(float)
     def display(x):  # flake8: noqa
         return round(x, 2)
+
+    @staticmethod
+    @dispatch(pd.Timestamp)
+    def display(x):  # flake8: noqa
+        return x
 
     @staticmethod
     @dispatch(int_t, int)

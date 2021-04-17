@@ -5,7 +5,7 @@ class Position(object):
     def __init__(
         self, action, ticker, init_quantity,
         init_price, init_commission,
-        bid, ask
+        bid, ask, start_timestamp
     ):
         """
         Set up the initial "account" of the Position to be
@@ -20,6 +20,8 @@ class Position(object):
         self.quantity = init_quantity
         self.init_price = init_price
         self.init_commission = init_commission
+        self.start_timestamp = start_timestamp
+        self.end_timestamp = None
 
         self.realised_pnl = 0
         self.unrealised_pnl = 0
@@ -76,7 +78,7 @@ class Position(object):
         self.market_value = self.quantity * midpoint * sign(self.net)
         self.unrealised_pnl = self.market_value - self.cost_basis
 
-    def transact_shares(self, action, quantity, price, commission):
+    def transact_shares(self, action, quantity, price, commission, timestamp):
         """
         Calculates the adjustments to the Position that occur
         once new shares are bought and sold.
@@ -124,6 +126,7 @@ class Position(object):
 
         # Adjust net values, including commissions
         self.net = self.buys - self.sells
+        self.end_timestamp = timestamp if self.net == 0 else None
         self.quantity = self.net
         self.net_total = self.total_sld - self.total_bot
         self.net_incl_comm = self.net_total - self.total_commission

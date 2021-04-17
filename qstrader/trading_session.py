@@ -163,6 +163,22 @@ class TradingSession(object):
                 results["max_drawdown_pct"] * 100.0
             )
         )
+        avg_drawdown = results['drawdowns'][results['drawdowns'] > 0].mean()
+        print("Average Drawdown: %0.2f%%" % (avg_drawdown*100.0) )
+        print('Number of trades: %s'% str(results["positions"].shape[0]))
+        roi = ((results['equity'].iloc[-1]/results['equity'].iloc[0])-1)
+        roi = '{:.2%}'.format(roi)
+        print('Total returns: %s'% roi)
+        pos = results['positions']
+        num_trades = pos.shape[0]
+        win_pct = pos[pos["trade_pct"] > 0].shape[0] / float(num_trades)
+        win_pct = '{:.2%}'.format(win_pct)
+        print("Trade Win: %s "%win_pct)
+        print("Max duration: %s"%results["max_duration"])
+        print("Min duration: %s"%results["min_duration"])
+        print("Std duration: %s"%results["std_duration"])
+        print("Avg duration: %s"%results["avg_duration"])
+
         if not testing:
             #self.statistics.plot_results()
             self.statistics.save()
